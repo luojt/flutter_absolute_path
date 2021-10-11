@@ -1,34 +1,31 @@
 package com.kasem.flutter_absolute_path
 
-import android.content.Context
-import android.content.Intent
+import android.app.Activity
 import android.net.Uri
-import android.os.Environment
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
-import io.flutter.plugin.common.PluginRegistry.Registrar
-import android.util.Log
-import android.content.pm.ProviderInfo
-import android.content.pm.PackageManager
-import android.content.pm.PackageInfo
-import java.security.Provider
+import androidx.annotation.NonNull
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 
+class FlutterAbsolutePathPlugin:  FlutterPlugin, MethodCallHandler , ActivityAware {
+    /// The MethodChannel that will the communication between Flutter and native Android
+    ///
+    /// This local reference serves to register the plugin with the Flutter Engine and unregister it
+    /// when the Flutter Engine is detached from the Activity
+    private lateinit var channel : MethodChannel
 
-class FlutterAbsolutePathPlugin(private val context: Context) : MethodCallHandler {
-
-    companion object {
-        @JvmStatic
-        fun registerWith(registrar: Registrar) {
-            val channel = MethodChannel(registrar.messenger(), "flutter_absolute_path")
-            channel.setMethodCallHandler(FlutterAbsolutePathPlugin(registrar.context()))
-        }
+    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        channel = MethodChannel(flutterPluginBinding.binaryMessenger, "flutter_absolute_path")
+        channel.setMethodCallHandler(this)
     }
 
-    override fun onMethodCall(call: MethodCall, result: Result) {
-        when {
-            call.method == "getAbsolutePath" -> {
+    override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+        when (call.method) {
+            "getAbsolutePath" -> {
                 val uriString = call.argument<Any>("uri") as String
                 val uri = Uri.parse(uriString)
 
@@ -39,17 +36,32 @@ class FlutterAbsolutePathPlugin(private val context: Context) : MethodCallHandle
 //                    return
 //                }
 
-                result.success(FileDirectory.getAbsolutePath(this.context, uri))
+                if(mContext!=null){
+                    result.success(FileDirectory.getAbsolutePath(mContext!!, uri))
+                }
+
             }
             else -> result.notImplemented()
         }
     }
 
-//    val applicationProviders: List<ProviderInfo>? by lazy {
-//        val applicationId = context.packageName
-//        context.packageManager
-//                .getInstalledPackages(PackageManager.GET_PROVIDERS)
-//                .firstOrNull { it.packageName == applicationId }
-//                ?.providers?.toList()
-//    }
+    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+        channel.setMethodCallHandler(null)
+    }
+    private var mContext: Activity? = null
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        mContext = binding.activity
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+
+    }
+
+    override fun onDetachedFromActivity() {
+
+    }
 }
